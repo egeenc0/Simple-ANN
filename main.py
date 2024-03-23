@@ -1,47 +1,38 @@
-import pydicom
+import pandas as pd
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
 import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import load_model
-import cv2
+import matplotlib
 
-# Modeli yükle
-model = load_model('simple_unet_model.h5')
+#I aimed to find relationship between flight hour and if the passenger wanted a meal or not.
+df = pd.read_csv('https://raw.githubusercontent.com/egeenc0/Simple-ANN/main/customer_booking.csv')
+"""
+print(df.head())
+print(df.columns)
+print(df.dtypes)
+"""
 
+x = df['flight_hour']
+y = df['wants_in_flight_meals']
+x_data = np.array(x)
+y_data = np.array(y)
 
-# DICOM dosyasını oku
-dicom_name = '1.3.46.423632.3373142023221753020.22.dcm'
-path ='C:\\Users\\egeen\\Downloads\\'
-dicom_file_path = path + dicom_name
-dicom_file = pydicom.dcmread(dicom_file_path,force=True)
+print(x_data)
+print(y_data)
+#Data is prepared
 
-if "TransferSyntaxUID" not in dicom_file.file_meta:
-    dicom_file.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+model = Sequential()
 
-# Görüntüyü numpy dizisine çevir
-image = dicom_file.pixel_array
+model.add(Dense(64, input_shape=(1,), activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(1, activation='sigmoid'))
 
-# Görüntüyü yeniden boyutlandır
-resized_image = cv2.resize(dicom_file.pixel_array, (256, 256))
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# Görüntüyü model için uygun hale getir
-image = np.expand_dims(resized_image, axis=-1)  # Model için boyut ekleyin
-image = np.expand_dims(image, axis=0)  # Batch boyutu ekleyin
-image = image / 255.0  # Görüntüyü normalize et
+model.fit(x_data, y_data, epochs=3)
 
-# Tahmini yap
-predicted_mask = model.predict(image)
+def predict_val(x):
+    return 1 if 0.5 > (model.predict(np.array(x).reshape(1,1))) else 0
 
-plt.figure(figsize=(10, 4))
-
-# Orijinal DICOM Görüntüsü
-plt.subplot(1, 2, 1)
-plt.title('Original Image')
-plt.imshow(image[0, :, :, 0], cmap='gray')
-
-# Kontürlü Görüntü
-plt.subplot(1, 2, 2)
-plt.title('Contoured Image')
-plt.imshow(predicted_mask[0, :, :, 0], cmap='gray')
-
-# Görüntüyü kaydet
-plt.savefig('contoured_image.png')
+sample_data = [t for t in range(10)]
